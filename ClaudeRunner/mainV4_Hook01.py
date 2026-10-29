@@ -269,6 +269,25 @@ def context_hook(query):
 register_hook("UserPromptSubmit", context_hook)
 
 
+STATE = {"tests_ran": False}
+
+def test_tracker_hook(block, output):
+    """PostToolUse: 留意本会话跑没跑过测试"""
+    if block.name == "bash" and "pytest" in block.input.get("command", ""):
+        STATE["tests_ran"] = True
+    return None
+
+def quality_gate_hook(messages):
+    """Stop: 改了代码没跑测试？那不能下班"""
+    if not STATE["tests_ran"]:
+        return ("你改了代码但还没有运行 pytest 验证。"
+                "请先运行测试，全部通过后再结束任务。")
+    return None
+
+register_hook("PostToolUse", test_tracker_hook)
+register_hook("Stop", quality_gate_hook)
+
+
 # Agentloop
 def agent_loop(messages:list):
     while True:
